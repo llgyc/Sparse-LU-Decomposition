@@ -13,6 +13,10 @@
 #include <iomanip>
 #include <sstream>
 #include <iostream>
+#include <unordered_map>
+
+#define START(prompt) prof.starttime(prompt)
+#define STOP(prompt) prof.stoptime(prompt)
 
 int N, nonzero;
 std::vector<std::vector<int>> row;
@@ -29,12 +33,30 @@ private:
     std::vector<int> fa;
 };
 
+class Profiling {
+public:
+    void starttime(const std::string &name) {
+        start_time_[name] = std::chrono::steady_clock::now();
+        std::cerr << "[START] " << name << std::endl;
+    }
+    void stoptime(const std::string &name) {
+        auto stop_time_ = std::chrono::steady_clock::now();
+        std::cerr << "[STOP] " << name << " -- Time: " 
+            << (std::chrono::duration_cast<std::chrono::microseconds>(stop_time_ - start_time_[name]).count()) 
+            / 1000000.0 << "[s]" << std::endl;
+    }
+
+private:
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> start_time_;
+} prof;
+
 std::vector<int> f, tag;
 // Column first
 std::vector<std::vector<int>> id;
 std::vector<std::vector<double>> mat;
 
 void LU_Decomposition() {
+    START("Elimination Tree");
     // Build Elimination Tree
     DSU dsu(N); f.resize(N);
     for (auto &x : f) x = -1;
@@ -46,7 +68,9 @@ void LU_Decomposition() {
             dsu.merge(root, i);
         }
     }
+    STOP("Elimination Tree");
 
+    START("Fill-in");
     // Calculate fill-in
     tag.resize(N); id.resize(N); mat.resize(N);
     for (auto &x : tag) x = -1;
@@ -65,7 +89,9 @@ void LU_Decomposition() {
         mat[i].push_back(0);
     }
     row.clear(); tag.clear(); f.clear();
+    STOP("Fill-in");
 
+    START("Initval");
     // Matrix Initialization
     #pragma omp parallel for schedule(static) shared(mat) num_threads(12)
     for (int i = 0; i < N; ++i) {
@@ -80,7 +106,9 @@ void LU_Decomposition() {
         }
     }
     col.clear(); 
+    STOP("Initval");
 
+    START("Bruteforce");
     // Bruteforce
     for (int k = 0; k < N; ++k) {
         double pivot = 1.0 / sqrt(mat[k][0]);
@@ -98,6 +126,7 @@ void LU_Decomposition() {
             }
         }
     }
+    STOP("Bruteforce");
 
 }
 
@@ -136,7 +165,7 @@ int main(int argc, char *argv[]) {
         mkdir(target_dir.c_str(), 0700);
     }
 
-    auto start = std::chrono::steady_clock::now();
+    START("Total");
 
     // Input
     std::string line;
@@ -163,14 +192,9 @@ int main(int argc, char *argv[]) {
     ifs.close();
 
     // Calculation
-    auto begin  = std::chrono::steady_clock::now();
-
+    START("Calculation");
     LU_Decomposition();
-
-    auto end = std::chrono::steady_clock::now();
-    std::cerr << "Calculation Time: " 
-        << (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) 
-        / 1000000.0 << "[s]" << std::endl;
+    STOP("Calculation");
 
     // Output
     /*
@@ -213,10 +237,7 @@ int main(int argc, char *argv[]) {
     }
     ofs_u.close();
     */
-    auto finish = std::chrono::steady_clock::now();
-    std::cerr << "Total Time: " 
-        << (std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count()) 
-        / 1000000.0 << "[s]" << std::endl;
+    STOP("Total");
     
     return 0;
 }
