@@ -12,10 +12,6 @@
 #include <iomanip>
 #include <sstream>
 #include <iostream>
-#include <unordered_map>
-
-#define START(prompt) prof.starttime(prompt)
-#define STOP(prompt) prof.stoptime(prompt)
 
 int N;
 int nonzero;
@@ -32,23 +28,6 @@ public:
 private:
     std::vector<int> fa;
 };
-
-class Profiling {
-public:
-    void starttime(const std::string &name) {
-        start_time_[name] = std::chrono::steady_clock::now();
-        std::cerr << "[START] " << name << std::endl;
-    }
-    void stoptime(const std::string &name) {
-        auto stop_time_ = std::chrono::steady_clock::now();
-        std::cerr << "[STOP] " << name << " -- Time: " 
-            << (std::chrono::duration_cast<std::chrono::microseconds>(stop_time_ - start_time_[name]).count()) 
-            / 1000000.0 << "[s]" << std::endl;
-    }
-
-private:
-    std::unordered_map<std::string, std::chrono::steady_clock::time_point> start_time_;
-} prof;
 
 std::vector<int> f, tag;
 // Column first
@@ -155,7 +134,7 @@ int main(int argc, char *argv[]) {
         mkdir(target_dir.c_str(), 0700);
     }
 
-    START("Total");
+    auto start = std::chrono::steady_clock::now();
 
     // Input
     std::string line;
@@ -182,9 +161,14 @@ int main(int argc, char *argv[]) {
     ifs.close();
 
     // Calculation
-    START("Calculation");
+    auto begin  = std::chrono::steady_clock::now();
+
     LU_Decomposition();
-    STOP("Calculation");
+
+    auto end = std::chrono::steady_clock::now();
+    std::cerr << "Calculation Time: " 
+        << (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) 
+        / 1000000.0 << "[s]" << std::endl;
 
     // Output
     /*
@@ -227,8 +211,10 @@ int main(int argc, char *argv[]) {
     }
     ofs_u.close();
     */
-    
-    STOP("Total");
+    auto finish = std::chrono::steady_clock::now();
+    std::cerr << "Total Time: " 
+        << (std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count()) 
+        / 1000000.0 << "[s]" << std::endl;
     
     return 0;
 }
