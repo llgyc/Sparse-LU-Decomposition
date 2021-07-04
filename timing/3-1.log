@@ -1,5 +1,15 @@
 nohup: ignoring input
 [Success] Binary build
-Calculation Time: 0.015739[s]
-Total Time: 0.377051[s]
+[START] Total
+[START] Calculation
+[START] Elimination Tree
+[STOP] Elimination Tree -- Time: 0.000066[s]
+[START] Fill-in
+[STOP] Fill-in -- Time: 0.056984[s]
+[START] Initval
+[STOP] Initval -- Time: 0.004775[s]
+[START] Bruteforce
+[STOP] Bruteforce -- Time: 0.014928[s]
+[STOP] Calculation -- Time: 0.076885[s]
+[STOP] Total -- Time: 0.138483[s]
 [Success] Result files are in ./result/

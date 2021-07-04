@@ -1,6 +1,0 @@
-nohup: ignoring input
-[Success] Binary build
-terminate called after throwing an instance of 'std::bad_alloc'
-  what():  std::bad_alloc
-./problem_1.sh: line 15: 22389 Aborted                 bin/problem_1.exe $1
-[Failure] Program returned abnormally

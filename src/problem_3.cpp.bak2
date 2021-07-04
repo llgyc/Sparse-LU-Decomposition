@@ -50,8 +50,9 @@ private:
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> start_time_;
 } prof;
 
-std::vector<int> f, tag;
+std::vector<int> f;
 // Column first
+std::vector<std::vector<int>> tmp[12];
 std::vector<std::vector<int>> id;
 std::vector<std::vector<double>> mat;
 
@@ -72,42 +73,59 @@ void LU_Decomposition() {
 
     START("Fill-in");
     // Calculate fill-in
-    tag.resize(N); id.resize(N); mat.resize(N);
-    for (auto &x : tag) x = -1;
+    id.resize(N); mat.resize(N);
+    #pragma omp parallel for schedule(dynamic, 32) shared(tmp) num_threads(12)
     for (int i = 0; i < N; ++i) {
+        std::vector<bool> tag; tag.resize(N);
+        int myid = omp_get_thread_num();
+        tmp[myid].resize(N);
         for (auto x : row[i]) {
             int now = x;
             while (now != i) {
-                if (tag[now] == i) break;
-                tag[now] = i;
-                id[now].push_back(i);
-                mat[now].push_back(0);
+                if (tag[now]) break;
+                tag[now] = true;
+                tmp[myid][now].push_back(i);
                 now = f[now];
             }
         }
-        id[i].push_back(i);
-        mat[i].push_back(0);
+        tmp[myid][i].push_back(i);
     }
-    row.clear(); tag.clear(); f.clear();
+    row.clear(); f.clear();
     STOP("Fill-in");
 
     START("Initval");
     // Matrix Initialization
-    #pragma omp parallel for schedule(dynamic, 32) shared(mat) num_threads(12)
+    #pragma omp parallel for schedule(dynamic, 32) shared(id, mat) num_threads(12)
     for (int i = 0; i < N; ++i) {
         unsigned ptr = 0;
-        for (unsigned j = 0; j < id[i].size(); ++j) {
-            if (ptr < col[i].size()) { 
-                if (col[i][ptr].first == id[i][j]) {
-                    mat[i][j] = col[i][ptr].second; ++ptr;
-                
-                }
-            } else break;
+        unsigned ompptr[12] = {};
+        std::priority_queue<std::pair<int, int>> aux;
+        for (int j = 0; j < 12; ++j) {
+            if (tmp[j].size() == 0) continue;
+            if (tmp[j][i].size() > 0) {
+                aux.push(std::make_pair(-tmp[j][i][0], j));
+                ompptr[j]++;
+            }
+        }
+        while (!aux.empty()) {
+            if (ptr < col[i].size() && col[i][ptr].first == -aux.top().first) {
+                id[i].push_back(col[i][ptr].first);
+                mat[i].push_back(col[i][ptr].second);
+                ++ptr;
+            } else {
+                id[i].push_back(-aux.top().first);
+                mat[i].push_back(0);
+            }
+            unsigned nowid = aux.top().second;
+            if (ompptr[nowid] < tmp[nowid][i].size()) {
+                aux.push(std::make_pair(-tmp[nowid][i][ompptr[nowid]++], nowid));
+            }
+            aux.pop();
         }
     }
     col.clear(); 
     STOP("Initval");
-    
+
     START("Bruteforce");
     // Bruteforce
     for (int k = 0; k < N; ++k) {
@@ -197,7 +215,7 @@ int main(int argc, char *argv[]) {
     STOP("Calculation");
 
     // Output
-    /*
+    
     auto output_file1 = target_dir + "/3_L_" + matrix_name;
     auto output_file2 = target_dir + "/3_U_" + matrix_name;
     std::ofstream ofs_l(output_file1);
@@ -236,7 +254,7 @@ int main(int argc, char *argv[]) {
         }
     }
     ofs_u.close();
-    */
+    
     STOP("Total");
     
     return 0;

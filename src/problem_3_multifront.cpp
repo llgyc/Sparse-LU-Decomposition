@@ -256,11 +256,11 @@ int main(int argc, char *argv[]) {
         }
     }
     ofs_u.close();
-
+    */
     auto finish = std::chrono::steady_clock::now();
     std::cerr << "Total Time: " 
         << (std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count()) 
         / 1000000.0 << "[s]" << std::endl;
-    */
+    
     return 0;
 }

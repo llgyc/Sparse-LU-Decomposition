@@ -1,5 +1,7 @@
 nohup: ignoring input
 [Success] Binary build
-Calculation Time: 657.264[s]
-Total Time: 674.58[s]
+[START] Total
+[START] Calculation
+[STOP] Calculation -- Time: 599.540113[s]
+[STOP] Total -- Time: 605.045746[s]
 [Success] Result files are in ./result/

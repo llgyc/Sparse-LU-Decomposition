@@ -27,7 +27,7 @@ public:
     DSU(int size) { fa.resize(size); for (int i = 0; i < size; ++i) fa[i] = i; }
     int getfather(int x) { return (fa[x] == x) ? x : (fa[x] = getfather(fa[x])); }
     void merge(int x, int y) { fa[getfather(x)] = y; }
-    bool same(long x, long y) { return getfather(x) == getfather(y); }
+    bool same(int x, int y) { return getfather(x) == getfather(y); }
 
 private:
     std::vector<int> fa;
@@ -37,13 +37,17 @@ class Profiling {
 public:
     void starttime(const std::string &name) {
         start_time_[name] = std::chrono::steady_clock::now();
-        std::cerr << "[START] " << name << std::endl;
+        fprintf(stderr, "[START] %s\n", name.c_str());
+        //std::cerr << "[START] " << name << std::endl;
     }
     void stoptime(const std::string &name) {
         auto stop_time_ = std::chrono::steady_clock::now();
-        std::cerr << "[STOP] " << name << " -- Time: " 
+        /*std::cerr << "[STOP] " << name << " -- Time: " 
             << (std::chrono::duration_cast<std::chrono::microseconds>(stop_time_ - start_time_[name]).count()) 
-            / 1000000.0 << "[s]" << std::endl;
+            / 1000000.0 << "[s]" << std::endl;*/
+        fprintf(stderr, "[STOP] %s -- Time: %.6lf[s]\n", name.c_str(), 
+            (std::chrono::duration_cast<std::chrono::microseconds>(stop_time_ - start_time_[name]).count()) 
+            / 1000000.0);
     }
 
 private:
@@ -56,6 +60,7 @@ std::vector<std::vector<int>> id;
 std::vector<std::vector<double>> mat;
 
 void LU_Decomposition() {
+    START("Elimination Tree");
     // Build Elimination Tree
     DSU dsu(N); f.resize(N);
     for (auto &x : f) x = -1;
@@ -67,7 +72,9 @@ void LU_Decomposition() {
             dsu.merge(root, i);
         }
     }
+    STOP("Elimination Tree");
 
+    START("Fill-in");
     // Calculate fill-in
     tag.resize(N); id.resize(N); mat.resize(N);
     for (auto &x : tag) x = -1;
@@ -85,8 +92,10 @@ void LU_Decomposition() {
         id[i].push_back(i);
         mat[i].push_back(0);
     }
-    row.clear(); tag.clear(); f.clear(); 
+    row.clear(); tag.clear(); f.clear();
+    STOP("Fill-in");
 
+    START("Initval");
     // Matrix Initialization
     for (int i = 0; i < N; ++i) {
         unsigned ptr = 0;
@@ -100,7 +109,9 @@ void LU_Decomposition() {
         }
     }
     col.clear(); 
+    STOP("Initval");
 
+    START("Bruteforce");
     // Bruteforce
     for (int k = 0; k < N; ++k) {
         double pivot = 1.0 / sqrt(mat[k][0]);
@@ -117,6 +128,7 @@ void LU_Decomposition() {
             }
         }
     }
+    STOP("Bruteforce");
 
 }
 
@@ -132,11 +144,18 @@ int main(int argc, char *argv[]) {
     std::string file_path(argv[0]);
     std::string matrix_path(argv[1]);
     
+    FILE *ifs = fopen(argv[1], "r");
+    if (!ifs) {
+        fprintf(stderr, "[ERROR] Cannot open matrix file\n");
+        return -1;
+    }
+    /*
     std::ifstream ifs(matrix_path);
     if (!ifs.is_open()) {
         std::cerr << "[ERROR] Cannot open matrix file" << std::endl;
         return -1;
     }
+    */
 
     auto file_pos = file_path.find_last_of("/");
     std::string target_dir;
@@ -158,7 +177,7 @@ int main(int argc, char *argv[]) {
     START("Total");
 
     // Input
-    std::string line;
+    /*std::string line;
     while (std::getline(ifs, line)) {
         if (line.size() > 0 && line[0] == '%')
             continue;
@@ -179,7 +198,26 @@ int main(int argc, char *argv[]) {
         col[y].push_back(std::make_pair(x, val));
     }
 
-    ifs.close();
+    ifs.close();*/
+    char ch = getc(ifs);
+    while (ch == '%') {
+        while (ch != '\n') ch = getc(ifs);
+        ch = getc(ifs);
+    }
+    ungetc(ch, ifs);
+    int M;
+    fscanf(ifs, "%d%d%d", &N, &M, &nonzero);
+    assert(N == M);
+    row.resize(N); col.resize(N);
+    for (int i = 0; i < nonzero; ++i) {
+        int x, y;
+        double val;
+        fscanf(ifs, "%d%d%lf", &x, &y, &val);
+        --x, --y;
+        if (x != y) row[x].push_back(y);
+        col[y].push_back(std::make_pair(x, val));
+    }
+    fclose(ifs);
 
     // Calculation
     START("Calculation");
@@ -187,29 +225,34 @@ int main(int argc, char *argv[]) {
     STOP("Calculation");
 
     // Output
-    /*
     auto output_file1 = target_dir + "/2_L_" + matrix_name;
     auto output_file2 = target_dir + "/2_U_" + matrix_name;
-    std::ofstream ofs_l(output_file1);
-    std::ofstream ofs_u(output_file2);
+    FILE *ofs_l = fopen(output_file1.c_str(), "w");
+    FILE *ofs_u = fopen(output_file2.c_str(), "w");
+    //std::ofstream ofs_l(output_file1);
+    //std::ofstream ofs_u(output_file2);
 
-    ofs_l << std::setprecision(16);
-    long long num = 0;
+    //ofs_l << std::setprecision(16);
+    int num = 0;
     for (int j = 0; j < N; ++j) num += id[j].size();
-    ofs_l << N << " " << N << " " << num << std::endl;
+    //ofs_l << N << " " << N << " " << num << std::endl;
+    fprintf(ofs_l, "%d %d %d\n", N, N, num);
     for (int j = 0; j < N; ++j) {
         if (id[j].size() == 0) continue;
         double pivot = mat[j][0];
         for (unsigned t = 0; t < id[j].size(); ++t) {
             int i = id[j][t];
             double val = mat[j][t] / pivot;
-            ofs_l << i + 1 << " " << j + 1 << " " << val << std::endl;
+            //ofs_l << i + 1 << " " << j + 1 << " " << val << std::endl;
+            fprintf(ofs_l, "%d %d %.15e\n", i + 1, j + 1, val);
         }
     }
-    ofs_l.close();
+    //ofs_l.close();
+    fclose(ofs_l);
 
-    ofs_u << std::setprecision(16);
-    ofs_u << N << " " << N << " " << num << std::endl;
+    //ofs_u << std::setprecision(16);
+    //ofs_u << N << " " << N << " " << num << std::endl;
+    fprintf(ofs_u, "%d %d %d\n", N, N, num);
     out.resize(N);
     for (int j = 0; j < N; ++j) {
         if (id[j].size() == 0) continue;
@@ -222,11 +265,12 @@ int main(int argc, char *argv[]) {
         for (auto x : out[j]) {
             int i = x.first;
             double val = x.second;
-            ofs_u << i + 1 << " " << j + 1 << " " << val << std::endl;
+            //ofs_u << i + 1 << " " << j + 1 << " " << val << std::endl;
+            fprintf(ofs_u, "%d %d %.15e\n", i + 1, j + 1, val);
         }
     }
-    ofs_u.close();
-    */
+    //ofs_u.close();
+    fclose(ofs_u);
     
     STOP("Total");
     
